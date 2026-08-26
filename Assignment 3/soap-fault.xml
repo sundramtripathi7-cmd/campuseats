@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<soap:Envelope
+    xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+    xmlns:pay="http://campuseats.example.com/payment">
+
+    <soap:Header>
+        <pay:ResponseInfo>
+            <pay:provider>CampusEats Payment Partner</pay:provider>
+        </pay:ResponseInfo>
+    </soap:Header>
+
+    <soap:Body>
+        <soap:Fault>
+            <faultcode>soap:Client</faultcode>
+            <faultstring>Payment declined</faultstring>
+            <detail>
+                <pay:PaymentError>
+                    <pay:errorCode>card_declined</pay:errorCode>
+                    <pay:errorMessage>The payment could not be completed.</pay:errorMessage>
+                </pay:PaymentError>
+            </detail>
+        </soap:Fault>
+    </soap:Body>
+
+</soap:Envelope>
