@@ -1,0 +1,96 @@
+openapi: 3.0.3
+
+info:
+  title: CampusEats Payments
+  version: "1.0.0"
+  description: Charges a card and records a payment.
+
+servers:
+  - url: http://localhost:8080
+  - url: https://api.campuseats.dev
+
+paths:
+  /payments:
+    post:
+      summary: Charge a card and create a payment
+
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          schema:
+            type: string
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChargeRequest"
+
+      responses:
+        "201":
+          description: Payment created
+        "400":
+          description: Invalid request
+        "422":
+          description: Card declined
+        "503":
+          description: Gateway unreachable
+
+  /payments/{id}:
+    get:
+      summary: Get a payment
+
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+
+      responses:
+        "200":
+          description: Payment found
+        "404":
+          description: Payment not found
+
+  /payments/{id}/refund:
+    post:
+      summary: Start a refund
+
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+
+      responses:
+        "202":
+          description: Refund accepted
+        "404":
+          description: Payment not found
+        "409":
+          description: Payment cannot be refunded
+
+components:
+  schemas:
+    ChargeRequest:
+      type: object
+      required:
+        - orderId
+        - cardToken
+        - amount
+        - currency
+      properties:
+        orderId:
+          type: integer
+        cardToken:
+          type: string
+        amount:
+          type: integer
+          minimum: 1
+        currency:
+          type: string
+          enum:
+            - INR

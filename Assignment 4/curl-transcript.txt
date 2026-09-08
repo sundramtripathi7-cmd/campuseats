@@ -1,0 +1,135 @@
+========================================
+1. Successful Create
+========================================
+
+COMMAND:
+curl.exe -i -X POST "http://127.0.0.1:5000/menu-items" -H "Content-Type: application/json" -H "Idempotency-Key: curl-test-001" --data-binary "@request.json"
+
+OUTPUT:
+HTTP/1.1 201 CREATED
+Server: Werkzeug/3.1.8 Python/3.14.7
+Date: Tue, 08 Sep 2026 14:08:42 GMT
+Content-Type: application/json
+Content-Length: 105
+Location: /menu-items/1
+Connection: close
+
+{
+  "available": true,
+  "category": "Fast Food",
+  "id": "1",
+  "name": "Veg Burger",
+  "price": 80.0
+}
+
+
+
+========================================
+2. Idempotent Repeat
+========================================
+
+COMMAND:
+curl.exe -i -X POST "http://127.0.0.1:5000/menu-items" -H "Content-Type: application/json" -H "Idempotency-Key: repeat-test-001" --data-binary "@create-request.json"
+
+OUTPUT:
+HTTP/1.1 201 CREATED
+Server: Werkzeug/3.1.8 Python/3.14.7
+Date: Tue, 08 Sep 2026 14:29:30 GMT
+Content-Type: application/json
+Content-Length: 107
+Location: /menu-items/2
+Connection: close
+
+{
+  "available": true,
+  "category": "Fast Food",
+  "id": "2",
+  "name": "Paneer Roll",
+  "price": 100.0
+}
+
+SECOND REQUEST:
+HTTP/1.1 201 CREATED
+Server: Werkzeug/3.1.8 Python/3.14.7
+Date: Tue, 08 Sep 2026 14:35:28 GMT
+Content-Type: application/json
+Content-Length: 107
+Location: /menu-items/2
+Connection: close
+
+{
+  "available": true,
+  "category": "Fast Food",
+  "id": "2",
+  "name": "Paneer Roll",
+  "price": 100.0
+}
+
+
+========================================
+3. Malformed / Invalid Body
+========================================
+
+COMMAND:
+curl.exe -i -X POST "http://127.0.0.1:5000/menu-items" -H "Content-Type: application/json" -H "Idempotency-Key: invalid-test-001" --data-binary "@invalid-request.json"
+
+OUTPUT:
+HTTP/1.1 400 BAD REQUEST
+Server: Werkzeug/3.1.8 Python/3.14.7
+Date: Tue, 08 Sep 2026 14:31:30 GMT
+Content-Type: application/problem+json
+Content-Length: 135
+Connection: close
+
+{
+  "detail": "category is required",
+  "status": 400,
+  "title": "Bad Request",
+  "type": "https://campuseats.example/problems/400"
+}
+
+
+========================================
+4. Missing Resource
+========================================
+
+COMMAND:
+curl.exe -i "http://127.0.0.1:5000/menu-items/99999"
+
+OUTPUT:
+HTTP/1.1 404 NOT FOUND
+Server: Werkzeug/3.1.8 Python/3.14.7
+Date: Tue, 08 Sep 2026 14:32:01 GMT
+Content-Type: application/problem+json
+Content-Length: 132
+Connection: close
+
+{
+  "detail": "Menu item not found",
+  "status": 404,
+  "title": "Not Found",
+  "type": "https://campuseats.example/problems/404"
+}
+
+
+========================================
+5. State Conflict
+========================================
+
+COMMAND:
+curl.exe -i -X POST "http://127.0.0.1:5000/menu-items/1/availability" -H "Content-Type: application/json" --data-binary "@request.json"
+
+OUTPUT:
+HTTP/1.1 409 CONFLICT
+Server: Werkzeug/3.1.8 Python/3.14.7
+Date: Tue, 08 Sep 2026 14:32:27 GMT
+Content-Type: application/problem+json
+Content-Length: 168
+Connection: close
+
+{
+  "detail": "Menu item is already in the requested availability state",
+  "status": 409,
+  "title": "Conflict",
+  "type": "https://campuseats.example/problems/409"
+}

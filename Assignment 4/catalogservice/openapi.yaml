@@ -1,0 +1,185 @@
+openapi: 3.0.3
+
+info:
+  title: CampusEats Catalog Service
+  version: 1.0.0
+  description: REST API for managing CampusEats menu items
+  license:
+    name: Academic Project
+
+servers:
+  - url: http://catalog.campuseats.local
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+
+  /menu-items:
+    post:
+      summary: Create a menu item
+      operationId: createMenuItem
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MenuItemInput'
+
+      responses:
+        '201':
+          description: Menu item created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuItem'
+
+        '400':
+          description: Malformed request body
+
+        '422':
+          description: Valid request but menu item cannot be created
+
+    get:
+      summary: List menu items
+      operationId: listMenuItems
+
+      parameters:
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+
+      responses:
+        '200':
+          description: List of menu items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MenuItem'
+
+        '400':
+          description: Invalid category filter
+
+  /menu-items/{id}:
+    get:
+      summary: Get a menu item
+      operationId: getMenuItem
+
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+
+      responses:
+        '200':
+          description: Menu item found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuItem'
+
+        '404':
+          description: Menu item not found
+
+  /menu-items/{id}/availability:
+    post:
+      summary: Change menu item availability
+      operationId: changeAvailability
+
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AvailabilityInput'
+
+      responses:
+        '200':
+          description: Availability updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuItem'
+
+        '404':
+          description: Menu item not found
+
+        '409':
+          description: Availability state conflict
+
+components:
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  schemas:
+
+    MenuItemInput:
+      type: object
+      required:
+        - name
+        - category
+        - price
+      properties:
+        name:
+          type: string
+
+        category:
+          type: string
+
+        price:
+          type: number
+          format: double
+
+        available:
+          type: boolean
+
+    AvailabilityInput:
+      type: object
+      required:
+        - available
+      properties:
+        available:
+          type: boolean
+
+    MenuItem:
+      type: object
+      required:
+        - id
+        - name
+        - category
+        - price
+        - available
+      properties:
+        id:
+          type: string
+
+        name:
+          type: string
+
+        category:
+          type: string
+
+        price:
+          type: number
+          format: double
+
+        available:
+          type: boolean

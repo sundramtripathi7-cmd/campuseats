@@ -1,0 +1,37 @@
+========================================
+CampusEats Assignment 4
+Payment Service Test Results
+========================================
+
+1. Successful Payment Creation
+--------------------------------
+Status: 201 CREATED
+
+2. Idempotent Repeat
+--------------------------------
+Status: 201 CREATED
+Same Idempotency-Key reused.
+Same payment ID returned.
+
+3. Card Declined
+--------------------------------
+Status: 422 UNPROCESSABLE CONTENT
+
+4. Missing Payment
+--------------------------------
+Status: 404 NOT FOUND
+
+5. Payment Service Unavailable
+--------------------------------
+Status: 503 SERVICE UNAVAILABLE
+
+6. Catalog → Payment Service Integration
+--------------------------------
+CatalogService successfully called PaymentsService
+using the payments client.
+
+7. OpenAPI Validation
+--------------------------------
+CatalogService: VALID
+PaymentService: VALID
+No validation errors.
