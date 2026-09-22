@@ -1,0 +1,503 @@
+openapi: 3.0.3
+
+info:
+  title: CampusEats Catalog Service
+  version: 2.0.0
+  description: |
+    Assignment 5 HTTP Methods & Headers implementation for the CampusEats
+    Catalog Service. The service exposes menu-item resources and a payment
+    integration endpoint.
+
+servers:
+  - url: http://127.0.0.1:5000
+    description: Local development
+
+security:
+  - BearerAuth: []
+
+paths:
+  /menu-items:
+    get:
+      summary: List menu items
+      operationId: listMenuItems
+      parameters:
+        - $ref: '#/components/parameters/Authorization'
+        - $ref: '#/components/parameters/Accept'
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [id, name, category, price]
+            default: id
+        - name: order
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        '200':
+          description: Filtered, sorted and paginated list
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/CacheControl'
+            X-RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit'
+            X-RateLimit-Remaining:
+              $ref: '#/components/headers/RateRemaining'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MenuItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+    post:
+      summary: Create a menu item
+      operationId: createMenuItem
+      parameters:
+        - $ref: '#/components/parameters/Authorization'
+        - $ref: '#/components/parameters/Accept'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MenuItemInput'
+      responses:
+        '201':
+          description: Menu item created
+          headers:
+            Location:
+              description: URI of the newly created menu item
+              schema:
+                type: string
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControl'
+            X-RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit'
+            X-RateLimit-Remaining:
+              $ref: '#/components/headers/RateRemaining'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+    options:
+      summary: Discover methods and CORS policy
+      security: []
+      responses:
+        '204':
+          description: Methods allowed for this resource
+          headers:
+            Allow:
+              description: HTTP methods supported by the resource
+              schema:
+                type: string
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/AllowOrigin'
+            Access-Control-Allow-Methods:
+              $ref: '#/components/headers/AllowMethods'
+            Access-Control-Allow-Headers:
+              $ref: '#/components/headers/AllowHeaders'
+
+  /menu-items/{id}:
+    get:
+      summary: Get one menu item
+      operationId: getMenuItem
+      parameters:
+        - $ref: '#/components/parameters/Authorization'
+        - $ref: '#/components/parameters/Accept'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Menu item found
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControl'
+            X-RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit'
+            X-RateLimit-Remaining:
+              $ref: '#/components/headers/RateRemaining'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuItem'
+        '304':
+          description: Resource has not changed; response has no body
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+    options:
+      summary: Discover methods and CORS policy
+      security: []
+      responses:
+        '204':
+          description: Methods allowed for this resource
+          headers:
+            Allow:
+              description: HTTP methods supported by the resource
+              schema:
+                type: string
+
+  /menu-items/{id}/availability:
+    post:
+      summary: Change menu item availability
+      operationId: changeAvailability
+      parameters:
+        - $ref: '#/components/parameters/Authorization'
+        - $ref: '#/components/parameters/Accept'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AvailabilityInput'
+      responses:
+        '200':
+          description: Availability updated
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControl'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+    options:
+      summary: Discover methods and CORS policy
+      security: []
+      responses:
+        '204':
+          description: Methods allowed by the sub-resource
+          headers:
+            Allow:
+              description: HTTP methods supported by the resource
+              schema:
+                type: string
+
+  /catalog-payments:
+    post:
+      summary: Request a payment through the Payment Service
+      operationId: catalogPayment
+      parameters:
+        - $ref: '#/components/parameters/Authorization'
+        - $ref: '#/components/parameters/Accept'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentRequest'
+      responses:
+        '201':
+          description: Payment created by the downstream service
+          headers:
+            Location:
+              description: URI of the created payment when supplied by the downstream service
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '422':
+          $ref: '#/components/responses/DomainRefusal'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+    options:
+      summary: Discover methods and CORS policy
+      security: []
+      responses:
+        '204':
+          description: Methods allowed by the resource
+          headers:
+            Allow:
+              description: HTTP methods supported by the resource
+              schema:
+                type: string
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: token
+
+  parameters:
+    Authorization:
+      name: Authorization
+      in: header
+      required: true
+      schema:
+        type: string
+        example: Bearer campuseats-demo-token
+    Accept:
+      name: Accept
+      in: header
+      required: false
+      schema:
+        type: string
+        default: application/json
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+    IfNoneMatch:
+      name: If-None-Match
+      in: header
+      required: false
+      schema:
+        type: string
+    IfMatch:
+      name: If-Match
+      in: header
+      required: false
+      schema:
+        type: string
+
+  headers:
+    ETag:
+      description: Version identifier for the current representation
+      schema:
+        type: string
+    CacheControl:
+      description: Caching policy for the response
+      schema:
+        type: string
+    RateLimit:
+      description: Per-client request budget
+      schema:
+        type: integer
+    RateRemaining:
+      description: Remaining requests in the current client window
+      schema:
+        type: integer
+    AllowOrigin:
+      description: CORS origin allowed to call the API
+      schema:
+        type: string
+    AllowMethods:
+      description: CORS methods allowed for the resource
+      schema:
+        type: string
+    AllowHeaders:
+      description: CORS request headers accepted by the API
+      schema:
+        type: string
+
+  responses:
+    BadRequest:
+      description: Malformed or invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Unauthorized:
+      description: Missing or empty/invalid Bearer token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    NotAcceptable:
+      description: Requested response media type is unsupported
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    NotFound:
+      description: Resource does not exist
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Conflict:
+      description: Requested state conflicts with current state
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    PreconditionFailed:
+      description: If-Match did not match the current ETag
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    DomainRefusal:
+      description: Valid request rejected by a domain rule
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    RateLimited:
+      description: Per-client rate limit exceeded
+      headers:
+        Retry-After:
+          description: Seconds to wait before retrying
+          schema:
+            type: integer
+        X-RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit'
+        X-RateLimit-Remaining:
+          $ref: '#/components/headers/RateRemaining'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Unavailable:
+      description: Payment dependency unavailable after bounded retries
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+  schemas:
+    MenuItemInput:
+      type: object
+      required: [name, category, price]
+      properties:
+        name:
+          type: string
+        category:
+          type: string
+        price:
+          type: number
+          format: double
+          minimum: 0
+        available:
+          type: boolean
+          default: true
+
+    AvailabilityInput:
+      type: object
+      required: [available]
+      properties:
+        available:
+          type: boolean
+
+    MenuItem:
+      type: object
+      required: [id, name, category, price, available]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+        price:
+          type: number
+          format: double
+        available:
+          type: boolean
+
+    PaymentRequest:
+      type: object
+      required: [orderId, cardToken, amount, currency]
+      properties:
+        orderId:
+          type: integer
+        cardToken:
+          type: string
+        amount:
+          type: integer
+          minimum: 1
+        currency:
+          type: string
+          enum: [INR]
+
+    Problem:
+      type: object
+      required: [type, title, status, detail]
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string

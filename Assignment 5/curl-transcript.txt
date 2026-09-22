@@ -1,0 +1,288 @@
+CampusEats Assignment 5 — curl -v transcript
+===============================================
+
+Environment:
+  Catalog Service: http://127.0.0.1:5000
+  Authorization: Bearer campuseats-demo-token
+  Note: Date/Server/Content-Length values can vary by Flask/Werkzeug version.
+  The ETags below are deterministic for the shown menu-item representations.
+
+==================================================
+1. Successful Create — 201 + Location
+==================================================
+
+COMMAND:
+curl.exe -v -X POST "http://127.0.0.1:5000/menu-items" ^
+  -H "Authorization: Bearer campuseats-demo-token" ^
+  -H "Accept: application/json" ^
+  -H "Content-Type: application/json" ^
+  -H "Idempotency-Key: a5-create-001" ^
+  --data-binary "@a5-create.json"
+
+HTTP RESPONSE:
+HTTP/1.1 201 CREATED
+Content-Type: application/json
+Content-Length: 105
+Location: /menu-items/1
+ETag: "862e3523c09c7a32"
+Cache-Control: no-store
+X-RateLimit-Limit: 20
+X-RateLimit-Remaining: 19
+X-Content-Type-Options: nosniff
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+Access-Control-Allow-Origin: http://localhost:3000
+
+{
+  "available": true,
+  "category": "Fast Food",
+  "id": "1",
+  "name": "Veg Burger",
+  "price": 80.0
+}
+
+
+==================================================
+2. Same Create Repeated — Original Result
+==================================================
+
+COMMAND:
+curl.exe -v -X POST "http://127.0.0.1:5000/menu-items" ^
+  -H "Authorization: Bearer campuseats-demo-token" ^
+  -H "Accept: application/json" ^
+  -H "Content-Type: application/json" ^
+  -H "Idempotency-Key: a5-create-001" ^
+  --data-binary "@a5-create.json"
+
+HTTP RESPONSE:
+HTTP/1.1 201 CREATED
+Content-Type: application/json
+Content-Length: 105
+Location: /menu-items/1
+ETag: "862e3523c09c7a32"
+Cache-Control: no-store
+X-RateLimit-Limit: 20
+X-RateLimit-Remaining: 18
+X-Content-Type-Options: nosniff
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+Access-Control-Allow-Origin: http://localhost:3000
+
+{
+  "available": true,
+  "category": "Fast Food",
+  "id": "1",
+  "name": "Veg Burger",
+  "price": 80.0
+}
+
+Expected observation:
+The second request does not create /menu-items/2. It returns the original
+resource /menu-items/1 because the same Idempotency-Key was reused.
+
+
+==================================================
+3. Initial GET — Obtain ETag
+==================================================
+
+COMMAND:
+curl.exe -v "http://127.0.0.1:5000/menu-items/1" ^
+  -H "Authorization: Bearer campuseats-demo-token" ^
+  -H "Accept: application/json"
+
+HTTP RESPONSE:
+HTTP/1.1 200 OK
+Content-Type: application/json
+ETag: "862e3523c09c7a32"
+Cache-Control: private, max-age=60
+X-RateLimit-Limit: 20
+X-RateLimit-Remaining: 17
+X-Content-Type-Options: nosniff
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+
+{
+  "available": true,
+  "category": "Fast Food",
+  "id": "1",
+  "name": "Veg Burger",
+  "price": 80.0
+}
+
+
+==================================================
+4. Conditional GET — 304 Not Modified
+==================================================
+
+COMMAND:
+curl.exe -v "http://127.0.0.1:5000/menu-items/1" ^
+  -H "Authorization: Bearer campuseats-demo-token" ^
+  -H "Accept: application/json" ^
+  -H "If-None-Match: \"862e3523c09c7a32\""
+
+HTTP RESPONSE:
+HTTP/1.1 304 NOT MODIFIED
+ETag: "862e3523c09c7a32"
+Cache-Control: private, max-age=60
+X-RateLimit-Limit: 20
+X-RateLimit-Remaining: 16
+X-Content-Type-Options: nosniff
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+
+(no response body)
+
+
+==================================================
+5. Conditional Write — First update succeeds
+==================================================
+
+COMMAND:
+curl.exe -v -X POST "http://127.0.0.1:5000/menu-items/1/availability" ^
+  -H "Authorization: Bearer campuseats-demo-token" ^
+  -H "Accept: application/json" ^
+  -H "Content-Type: application/json" ^
+  -H "If-Match: \"862e3523c09c7a32\"" ^
+  --data-binary "@availability.json"
+
+HTTP RESPONSE:
+HTTP/1.1 200 OK
+Content-Type: application/json
+ETag: "de4e493830bdfee8"
+Cache-Control: private, max-age=60
+X-RateLimit-Limit: 20
+X-RateLimit-Remaining: 15
+X-Content-Type-Options: nosniff
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+
+{
+  "available": false,
+  "category": "Fast Food",
+  "id": "1",
+  "name": "Veg Burger",
+  "price": 80.0
+}
+
+
+==================================================
+6. Conditional Write With Stale ETag — 412
+==================================================
+
+COMMAND:
+curl.exe -v -X POST "http://127.0.0.1:5000/menu-items/1/availability" ^
+  -H "Authorization: Bearer campuseats-demo-token" ^
+  -H "Accept: application/json" ^
+  -H "Content-Type: application/json" ^
+  -H "If-Match: \"862e3523c09c7a32\"" ^
+  --data-binary "@availability.json"
+
+HTTP RESPONSE:
+HTTP/1.1 412 PRECONDITION FAILED
+Content-Type: application/json
+X-RateLimit-Limit: 20
+X-RateLimit-Remaining: 14
+X-Content-Type-Options: nosniff
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+
+{
+  "detail": "Resource changed since the client last read it",
+  "status": 412,
+  "title": "Precondition Failed",
+  "type": "https://campuseats.example/problems/412"
+}
+
+
+==================================================
+7. Invalid Create — 400
+==================================================
+
+COMMAND:
+curl.exe -v -X POST "http://127.0.0.1:5000/menu-items" ^
+  -H "Authorization: Bearer campuseats-demo-token" ^
+  -H "Accept: application/json" ^
+  -H "Content-Type: application/json" ^
+  -H "Idempotency-Key: a5-bad-001" ^
+  --data-binary "@bad-request.json"
+
+HTTP RESPONSE:
+HTTP/1.1 400 BAD REQUEST
+Content-Type: application/json
+X-RateLimit-Limit: 20
+X-RateLimit-Remaining: 13
+X-Content-Type-Options: nosniff
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+
+{
+  "detail": "category is required",
+  "status": 400,
+  "title": "Bad Request",
+  "type": "https://campuseats.example/problems/400"
+}
+
+
+==================================================
+8. Missing Resource — 404
+==================================================
+
+COMMAND:
+curl.exe -v "http://127.0.0.1:5000/menu-items/99999" ^
+  -H "Authorization: Bearer campuseats-demo-token" ^
+  -H "Accept: application/json"
+
+HTTP RESPONSE:
+HTTP/1.1 404 NOT FOUND
+Content-Type: application/json
+X-RateLimit-Limit: 20
+X-RateLimit-Remaining: 12
+X-Content-Type-Options: nosniff
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+
+{
+  "detail": "Menu item not found",
+  "status": 404,
+  "title": "Not Found",
+  "type": "https://campuseats.example/problems/404"
+}
+
+
+==================================================
+9. Missing Authorization — 401
+==================================================
+
+COMMAND:
+curl.exe -v "http://127.0.0.1:5000/menu-items/1" ^
+  -H "Accept: application/json"
+
+HTTP RESPONSE:
+HTTP/1.1 401 UNAUTHORIZED
+Content-Type: application/json
+X-RateLimit-Limit: 20
+X-RateLimit-Remaining: 11
+X-Content-Type-Options: nosniff
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+
+{
+  "detail": "Authorization: Bearer <token> is required",
+  "status": 401,
+  "title": "Unauthorized",
+  "type": "https://campuseats.example/problems/401"
+}
+
+
+==================================================
+10. OPTIONS — Allow + CORS
+==================================================
+
+COMMAND:
+curl.exe -v -X OPTIONS "http://127.0.0.1:5000/menu-items" ^
+  -H "Origin: http://localhost:3000" ^
+  -H "Access-Control-Request-Method: POST" ^
+  -H "Access-Control-Request-Headers: Authorization, Content-Type, Idempotency-Key"
+
+HTTP RESPONSE:
+HTTP/1.1 204 NO CONTENT
+Allow: GET, POST, OPTIONS
+Access-Control-Allow-Origin: http://localhost:3000
+Access-Control-Allow-Methods: GET, POST, OPTIONS
+Access-Control-Allow-Headers: Authorization, Content-Type, Idempotency-Key
+Access-Control-Max-Age: 600
+X-Content-Type-Options: nosniff
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+
+(no response body)
