@@ -1,0 +1,49 @@
+CampusEats Assignment 6 — curl transcript
+=========================================
+Start service: python app.py
+Token: campuseats-demo-token
+
+1) Happy path: 201 + Location + JSON
+curl -i -X POST http://127.0.0.1:5001/orders -H "Authorization: Bearer campuseats-demo-token" -H "Accept: application/json" -H "Content-Type: application/json" -H "Idempotency-Key: demo-order-1" -d "{\"items\":[{\"menuItemId\":\"1\",\"qty\":2}],\"address\":\"Hostel A, Room 12\"}"
+Expected: 201 Created; Location: /orders/{id}; JSON body contains id, status, total.
+
+2) Validation: empty cart (422)
+curl -i -X POST http://127.0.0.1:5001/orders -H "Authorization: Bearer campuseats-demo-token" -H "Content-Type: application/json" -d "{\"items\":[],\"address\":\"Hostel A\"}"
+Expected Problem Details status 422, type validation-error, errors[] identifies items.
+
+3) Two invalid fields at once (422)
+curl -i -X POST http://127.0.0.1:5001/orders -H "Authorization: Bearer campuseats-demo-token" -H "Content-Type: application/json" -d "{\"items\":[{\"menuItemId\":\"1\",\"qty\":0}],\"address\":\"\"}"
+Expected errors[] contains items[0].qty and address.
+
+4) Unknown order id (404)
+curl -i http://127.0.0.1:5001/orders/does-not-exist -H "Authorization: Bearer campuseats-demo-token"
+Expected: 404, type order-not-found, application/problem+json.
+
+5) Unsupported Accept (406)
+curl -i http://127.0.0.1:5001/orders -H "Authorization: Bearer campuseats-demo-token" -H "Accept: image/png"
+Expected: 406 Not Acceptable.
+
+6) XML negotiation (201)
+curl -i -X POST http://127.0.0.1:5001/orders -H "Authorization: Bearer campuseats-demo-token" -H "Accept: application/xml" -H "Content-Type: application/json" -d "{\"items\":[{\"menuItemId\":\"2\",\"qty\":1}],\"address\":\"Library Gate\"}"
+Expected: 201 and Content-Type: application/xml; charset=utf-8; XML order representation.
+
+7) Illegal transition (409)
+Create an order first, then PATCH /orders/{id} with {"status":"completed"}.
+curl -i -X PATCH http://127.0.0.1:5001/orders/REPLACE_WITH_ID -H "Authorization: Bearer campuseats-demo-token" -H "Content-Type: application/json" -d "{\"status\":\"completed\"}"
+Expected: 409, type illegal-transition.
+
+8) Payment declined (402)
+Create an order first, then PATCH its status to paid with X-Simulate-Payment: declined.
+Expected: 402, type payment-declined; state remains unchanged.
+
+9) Transient payment outage (503 + Retry-After)
+Create an order first, then PATCH its status to paid with X-Simulate-Payment: unavailable.
+Expected: 503, type payment-service-unavailable, Retry-After: 5.
+
+10) Rate limit (429 + Retry-After)
+Set RATE_LIMIT=2 before starting service, then make three requests from the same client inside 60 seconds.
+Expected third request: 429 with Retry-After.
+
+11) A5 regression
+From Assignment 5/catalogservice run: pytest -q
+This confirms the earlier catalog service checks remain available without replacing that implementation.
