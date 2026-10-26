@@ -1,0 +1,8 @@
+# Add this route to your existing app.py after `app = Flask(__name__)`.
+# Keep all your existing REST and GraphQL routes. Do not replace app.py.
+
+from flask import render_template
+
+@app.get("/")
+def home_page():
+    return render_template("index.html")

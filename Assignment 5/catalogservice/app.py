@@ -4,7 +4,8 @@ import os
 import time
 from functools import wraps
 
-from flask import Flask, request, jsonify, make_response
+from flask import Flask, request, jsonify, make_response, render_template
+from graphql_schema import schema
 
 from models import validate_menu_item, validate_availability
 from payments_client import create_payment
@@ -20,6 +21,10 @@ from errors import problem
 
 
 app = Flask(__name__)
+
+@app.get("/")
+def home_page():
+    return render_template("index.html")
 
 # ============================================================
 # CONFIGURATION
@@ -235,6 +240,9 @@ def allow_for_path():
         return "GET, OPTIONS"
 
     if path == "/catalog-payments":
+        return "POST, OPTIONS"
+
+    if path == "/graphql":
         return "POST, OPTIONS"
 
     return "OPTIONS"
@@ -778,6 +786,52 @@ def catalog_payment():
             response.headers[name] = value
 
     return response
+
+
+# ============================================================
+# GRAPHQL API
+# POST /graphql
+# ============================================================
+
+@app.post("/graphql")
+@auth_protected
+def graphql_endpoint():
+    """Execute an authenticated GraphQL query or mutation."""
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict):
+        return problem(
+            400,
+            "Bad Request",
+            "Request body must be a JSON object",
+        )
+
+    query = data.get("query")
+    if not isinstance(query, str) or not query.strip():
+        return problem(
+            400,
+            "Bad Request",
+            "A non-empty GraphQL query is required",
+        )
+
+    result = schema.execute(
+        query,
+        variable_values=data.get("variables"),
+        operation_name=data.get("operationName"),
+    )
+
+    response_body = {}
+
+    if result.errors:
+        response_body["errors"] = [
+            {"message": str(error)} for error in result.errors
+        ]
+
+    if result.data is not None:
+        response_body["data"] = result.data
+
+    return jsonify(response_body), 200
+
 
 
 # ============================================================

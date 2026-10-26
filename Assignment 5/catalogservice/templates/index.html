@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Campus Eats menu dashboard" />
+  <title>Campus Eats | Menu</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/"><span class="brand-mark">CE</span><span>Campus<span class="brand-accent">Eats</span><small>GOOD FOOD. CAMPUS MOOD.</small></span></a>
+    <nav><a class="nav-link active" href="#menu">Menu</a><a class="nav-link" href="#manage">Manage items</a></nav>
+    <button class="btn btn-outline" id="refreshBtn" type="button">↻ Refresh menu</button>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="pulse"></span> CAMPUS CAFETERIA</p>
+        <h1>Good food.<br /><span>Good mood.</span></h1>
+        <p class="hero-description">Find your campus favourites, check availability, and keep the menu fresh.</p>
+        <a class="btn btn-primary" href="#menu">Explore the menu <span>→</span></a>
+      </div>
+      <div class="hero-art" aria-hidden="true"><div class="art-circle circle-one"></div><div class="art-circle circle-two"></div><div class="food-emoji">🍔</div><div class="floating-chip chip-top">Fresh & tasty</div><div class="floating-chip chip-bottom">Made for campus life ✦</div></div>
+    </section>
+
+    <section class="stats-row" aria-label="Menu summary">
+      <div class="stat-card"><span class="stat-icon">🍽️</span><div><strong id="totalCount">—</strong><small>Menu items</small></div></div>
+      <div class="stat-card"><span class="stat-icon green-icon">✓</span><div><strong id="availableCount">—</strong><small>Available now</small></div></div>
+      <div class="stat-card"><span class="stat-icon orange-icon">₹</span><div><strong id="averagePrice">—</strong><small>Average price</small></div></div>
+    </section>
+
+    <section id="menu" class="menu-section">
+      <div class="section-heading"><div><p class="eyebrow">WHAT'S COOKING?</p><h2>Explore the menu</h2><p class="muted">Your favourites are just a click away.</p></div><span class="api-pill"><span class="pulse"></span> GraphQL connected</span></div>
+      <div class="toolbar"><label class="search-box"><span>⌕</span><input id="searchInput" type="search" placeholder="Search food or category..." /></label><select id="categoryFilter" aria-label="Filter by category"><option value="">All categories</option></select><select id="availabilityFilter" aria-label="Filter availability"><option value="all">All items</option><option value="available">Available only</option><option value="unavailable">Unavailable</option></select></div>
+      <div id="statusMessage" class="status-message" role="status">Loading menu from GraphQL…</div>
+      <div id="menuGrid" class="menu-grid"></div>
+      <div id="emptyState" class="empty-state hidden"><span>🥣</span><h3>No items found</h3><p>Try changing your search or category filter.</p></div>
+    </section>
+
+    <section id="manage" class="manage-section">
+      <div class="section-heading"><div><p class="eyebrow">CATALOG TOOLS</p><h2>Manage menu items</h2><p class="muted">Create an item or update its availability using GraphQL mutations.</p></div></div>
+      <div class="manage-grid">
+        <form id="createForm" class="panel">
+          <h3><span class="panel-icon">＋</span> Add a menu item</h3>
+          <label>Food name<input id="itemName" name="name" required maxlength="100" placeholder="e.g. Paneer Wrap" /></label>
+          <div class="form-row"><label>Category<input id="itemCategory" name="category" required maxlength="60" placeholder="e.g. Snacks" /></label><label>Price (₹)<input id="itemPrice" name="price" type="number" min="0.01" step="0.01" required placeholder="80" /></label></div>
+          <label class="checkbox-label"><input id="itemAvailable" type="checkbox" checked /> Available for order</label>
+          <button class="btn btn-primary full-width" type="submit">Create menu item <span>→</span></button>
+          <p id="createMessage" class="form-message" role="status"></p>
+        </form>
+        <form id="availabilityForm" class="panel">
+          <h3><span class="panel-icon panel-icon-orange">↻</span> Update availability</h3>
+          <label>Select menu item<select id="updateItemId" required><option value="">Load menu items first</option></select></label>
+          <label class="checkbox-label"><input id="updatedAvailable" type="checkbox" /> Mark as available</label>
+          <button class="btn btn-dark full-width" type="submit">Save availability</button>
+          <p id="updateMessage" class="form-message" role="status"></p>
+          <p class="help-text">Changes are sent to your existing Flask GraphQL endpoint.</p>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer><a class="brand footer-brand" href="/"><span class="brand-mark">CE</span><span>Campus<span class="brand-accent">Eats</span></span></a><p>Built for campus life · Flask + GraphQL</p></footer>
+  <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+</body>
+</html>
