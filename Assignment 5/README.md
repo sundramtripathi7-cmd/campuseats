@@ -331,3 +331,256 @@ Assignment 5/
 ```
 
 The project structure above highlights the main application, frontend, API schema, and test files.
+
+ 
+
+## Assignment 7 — GraphQL Menu Service
+
+### 1. Selected CampusEats Service
+
+We selected the **Menu Catalog Service** of CampusEats. It allows clients to retrieve menu items, filter items by category, fetch an item by ID, create new menu items, and update their availability.
+
+### 2. GraphQL Implementation
+
+The service is implemented using Python Flask, Graphene, and MySQL. The GraphQL endpoint is:
+
+`POST /graphql`
+
+**Object Type:** `MenuItemType`
+
+Fields:
+- `id`: Menu item identifier
+- `name`: Name of the dish
+- `category`: Menu category
+- `price`: Price of the dish
+- `available`: Availability status
+
+**Queries:**
+- `menuItems(category:)` — Retrieves all menu items or filters them by category.
+- `menuItem(id:)` — Retrieves a single menu item by ID.
+
+**Mutations:**
+- `createMenuItem` — Adds a new menu item.
+- `updateMenuAvailability` — Updates the availability of an existing item.
+
+### 3. Database Mapping
+
+The GraphQL resolvers delegate database operations to functions in `store.py`.
+
+- `resolve_menu_items` calls `list_items()` to retrieve menu items, optionally filtered by category.
+- `resolve_menu_item` calls `get_item()` to retrieve an item by ID.
+- The `CreateMenuItem.mutate` method validates the input and calls `create_item()`. The database insertion is performed inside `store.py`.
+- The `UpdateMenuAvailability.mutate` method calls `update_availability()` to update an item's availability.
+
+For the category filter, the database operation uses the category condition to select matching records. The exact SQL implementation is defined in `store.py`.
+
+### 4. Answers to Assignment Questions
+
+**Q1. Which CampusEats service did you pick?**
+
+We selected the Menu Catalog Service, which manages menu-item details and availability.
+
+**Q2. Name one field a client can skip and one it cannot. Why do we use the `!` sign?**
+
+In GraphQL, a nullable field can be omitted from the selection set, while a non-null field marked with `!` cannot return `null` when requested. For example, `category` can be omitted from a query selection. In the current implementation, the object fields are nullable by default; the `id` argument of `menuItem` and the `id` and `available` arguments of `updateMenuAvailability` are required.
+
+**Q3. Which part of your query became the SQL WHERE condition, and which resolver ran the INSERT?**
+
+The category argument of `menuItems(category:)` is used to filter menu items in the database. The `CreateMenuItem.mutate` method invokes `create_item()`, which performs the database insertion.
+
+### 5. Frontend Demonstration
+
+The HTML/CSS/JavaScript frontend is served by Flask. It fetches menu items through the GraphQL endpoint and provides controls to create menu items and update availability.
+
+The live demonstration should include:
+1. The menu before the mutation.
+2. Creating a new menu item or updating its availability.
+3. The updated menu after the mutation.
+
+### 6. Submission Evidence
+
+- Before-mutation screenshot: Added in submission folder.
+- After-mutation screenshot: Added in submission folder
+- Demonstration video: Add the Google Drive link here.
+- GitHub repository: https://github.com/sundramtripathi7-cmd/campuseats
+
+### 7. Team Details
+
+Sundaram Tripathi               :  (20251651091) (lead),
+Abhinav Kumar Chandravanshi     :  (20251651004)
+Ankit Kumar                     :  (20251651022)
+akshay kumar                    :  (20251651012)
+
+## Assignment 7 — GraphQL Menu Catalog Service
+
+### Project Overview
+
+CampusEats is a campus food catalog application. For Assignment 7, the Menu Catalog Service is exposed through a GraphQL API. Users can retrieve menu items, filter them by category, create new menu items, and update item availability.
+
+### Technology Stack
+
+- **Backend:** Python Flask
+- **GraphQL:** Graphene
+- **Database:** MySQL
+- **Frontend:** HTML, CSS and JavaScript
+- **GraphQL Endpoint:** `POST /graphql`
+
+### Features
+
+1. Retrieve all menu items.
+2. Retrieve a menu item by ID.
+3. Filter menu items by category.
+4. Create a new menu item using a mutation.
+5. Update menu-item availability using a mutation.
+6. Display menu data through the CampusEats web interface.
+
+### Main Project Files
+
+```text
+catalogservice/
+├── app.py
+├── graphql_schema.py
+├── models.py
+├── store.py
+├── requirements.txt
+├── templates/
+│   └── index.html
+├── static/
+│   ├── css/
+│   │   └── style.css
+│   └── js/
+│       └── app.js
+├── test_graphql.py
+└── README.md
+```
+
+### How to Run the Project
+
+1. Start the MySQL server.
+2. Open a terminal in the `catalogservice` directory.
+3. Install the required Python dependencies:
+
+```powershell
+pip install -r requirements.txt
+```
+
+4. Configure the database connection using environment variables. Set `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, and `DB_NAME` to match your local MySQL setup. Do not commit your database password.
+5. Start the Flask application:
+
+```powershell
+python app.py
+```
+
+6. Open the application at `http://127.0.0.1:5000`.
+7. Use the Menu and Manage Items sections to view and modify menu items.
+
+### GraphQL Examples
+
+**Query — Retrieve menu items**
+
+```graphql
+{
+  menuItems {
+    id
+    name
+    category
+    price
+    available
+  }
+}
+```
+
+**Query — Filter by category**
+
+```graphql
+{
+  menuItems(category: "Snacks") {
+    id
+    name
+    price
+    available
+  }
+}
+```
+
+**Mutation — Create a menu item**
+
+```graphql
+mutation {
+  createMenuItem(
+    name: "Assignment 7 Test Sandwich"
+    category: "Snacks"
+    price: 75
+    available: true
+  ) {
+    menuItem {
+      id
+      name
+      category
+      price
+      available
+    }
+  }
+}
+```
+
+**Mutation — Update availability**
+
+```graphql
+mutation {
+  updateMenuAvailability(id: "1", available: false) {
+    menuItem {
+      id
+      name
+      available
+    }
+  }
+}
+```
+
+Use an existing menu-item ID when running the availability mutation. The GraphQL endpoint uses the authentication configured in the application.
+
+### Answers to Assignment Questions
+
+**Q1. Which CampusEats service did you pick?**
+
+We selected the Menu Catalog Service, which manages menu-item details, category, price and availability.
+
+**Q2. Name one field a client can skip and one it cannot. Why is the `!` sign used?**
+
+A client can omit the `category` field from its selection set when it does not need category information. The `id` argument of the `menuItem` query cannot be omitted because it is declared with `required=True` in the Graphene schema. GraphQL's `!` notation indicates a non-null type or required argument. In the current implementation, object fields are nullable by default, so they are not all marked non-null.
+
+**Q3. Which part of your query became the SQL `WHERE` condition, and which resolver ran the `INSERT`?**
+
+The `category` argument in `menuItems(category: "Snacks")` is used to filter database records. In MySQL mode, the storage function `list_items(category)` applies the category filter using a SQL `WHERE` condition. The `CreateMenuItem.mutate` method validates the input and calls `create_item(item)`, which executes the SQL `INSERT` statement.
+
+### Submission Evidence
+
+**Before mutation:** `Assignment_7/Screanshots/before/`
+
+**After mutation:** `Assignment_7/Screanshots/after/`
+
+**Demonstration video:** [https://drive.google.com/file/d/1YRPuP__5XNtUoycgHGEGP0XmdFn5Q_lV/view?usp=drivesdk]
+
+**GitHub repository:** [https://github.com/sundramtripathi7-cmd/campuseats]
+
+### Testing
+
+Run the test suite from the project directory:
+
+```powershell
+$env:STORE_BACKEND = "memory"
+python -m pytest -q
+```
+
+The memory backend is intended for testing. Remove the environment override before running the application against MySQL:
+
+```powershell
+Remove-Item Env:STORE_BACKEND -ErrorAction SilentlyContinue
+```
+
+Before submission, verify the tests and the live MySQL demonstration.
+
+### Conclusion
+
+The CampusEats Menu Catalog Service demonstrates how GraphQL queries and mutations can be integrated with a Flask application, a MySQL database and a simple web interface. It supports menu retrieval, category filtering, item creation and availability updates.
