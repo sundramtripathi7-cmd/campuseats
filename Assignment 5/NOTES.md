@@ -3,7 +3,7 @@
 
 ### Team ID
 
-`[ENTER TEAM ID]`
+`[Team ID 4]`
 
 ### Team Members
 

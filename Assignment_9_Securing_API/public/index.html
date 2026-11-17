@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CampusEats | Secured REST API (JWT & Roles)</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Top Header -->
+  <header class="header">
+    <a href="/" class="brand">
+      <div class="brand-icon">CE</div>
+      <div class="brand-name">Campus<span>Eats</span></div>
+    </a>
+    <span class="badge">Assignment 9 – Securing the API</span>
+  </header>
+
+  <!-- Main Container -->
+  <main class="container">
+
+    <!-- Auth Management Section -->
+    <section class="auth-banner">
+      <div class="auth-header">
+        <div class="auth-status">
+          <span id="statusDot" class="status-dot offline"></span>
+          <span id="statusText">Session: <strong>Not Authenticated</strong></span>
+          <span id="roleBadge" class="role-badge guest">Guest</span>
+        </div>
+        <button id="logoutBtn" class="btn-logout" style="display: none;">Log Out</button>
+      </div>
+
+      <!-- Quick 1-Click Demo Logins -->
+      <p style="font-size: 0.85rem; font-weight: 600; color: #475569; margin-bottom: 0.5rem;">
+        ⚡ Fast Login with Demo Accounts:
+      </p>
+      <div class="demo-buttons">
+        <button type="button" class="btn-demo" id="demoCustomerBtn">
+          👤 Customer <em>(View Only)</em>
+        </button>
+        <button type="button" class="btn-demo" id="demoRestaurantBtn">
+          👨‍🍳 Restaurant <em>(Can Add Items)</em>
+        </button>
+        <button type="button" class="btn-demo" id="demoAdminBtn">
+          🛡️ Admin <em>(Full Access)</em>
+        </button>
+      </div>
+
+      <!-- Manual Login Form -->
+      <form id="loginForm" class="manual-login">
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="form-label" for="loginUsername">Username</label>
+          <input class="form-input" type="text" id="loginUsername" placeholder="e.g. restaurant" required />
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="form-label" for="loginPassword">Password</label>
+          <input class="form-input" type="password" id="loginPassword" placeholder="e.g. restaurant123" required />
+        </div>
+        <button type="submit" class="btn-primary" style="margin-top: 0; padding: 0.65rem 1.25rem;">
+          Sign In
+        </button>
+      </form>
+
+      <div id="loginMessage" class="message-box" role="alert"></div>
+    </section>
+
+    <!-- Main Content Layout -->
+    <div class="main-grid">
+
+      <!-- Left Column: Menu Items -->
+      <section>
+        <div class="section-header">
+          <h2 class="section-title">Cafeteria Menu (Public Read)</h2>
+          <button id="refreshBtn" class="btn-secondary" type="button">
+            ↻ Refresh Menu
+          </button>
+        </div>
+
+        <div id="menuContainer" class="menu-grid">
+          <!-- Dynamically populated via Fetch API -->
+          <div class="empty-state">
+            <div class="empty-icon">⏳</div>
+            <p>Loading campus menu...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Protected Add Item Form -->
+      <aside>
+        <div class="form-card">
+          <h3 class="form-title">🔒 Add Menu Item</h3>
+          <p class="form-desc">
+            Protected endpoint (<code>POST /items</code>). Requires JWT authentication and <strong>restaurant</strong> or <strong>admin</strong> role.
+          </p>
+
+          <form id="addItemForm">
+            <div class="form-group">
+              <label class="form-label" for="itemName">Item Name *</label>
+              <input class="form-input" type="text" id="itemName" placeholder="e.g. Butter Paneer Wrap" required />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="itemCategory">Category</label>
+              <input class="form-input" type="text" id="itemCategory" placeholder="e.g. Fast Food" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="itemPrice">Price (₹) *</label>
+              <input class="form-input" type="number" id="itemPrice" min="0" step="0.5" placeholder="e.g. 120" required />
+            </div>
+
+            <div class="form-group">
+              <label class="checkbox-label" for="itemAvailable">
+                <input type="checkbox" id="itemAvailable" checked />
+                <span>Available for Ordering</span>
+              </label>
+            </div>
+
+            <button type="submit" class="btn-primary" id="addItemBtn">
+              Submit to Secured API
+            </button>
+
+            <!-- Form response status box -->
+            <div id="createMessage" class="message-box" role="alert"></div>
+          </form>
+        </div>
+      </aside>
+
+    </div>
+
+  </main>
+
+  <footer class="footer">
+    <p>CampusEats · Assignment 9 Secured REST API · Express.js + JWT + bcryptjs</p>
+  </footer>
+
+  <!-- Frontend Logic -->
+  <script>
+    // State management
+    let authToken = localStorage.getItem('campuseats_token') || null;
+    let currentUser = JSON.parse(localStorage.getItem('campuseats_user') || 'null');
+
+    // DOM Elements
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const roleBadge = document.getElementById('roleBadge');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const loginForm = document.getElementById('loginForm');
+    const loginMessage = document.getElementById('loginMessage');
+    const menuContainer = document.getElementById('menuContainer');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const addItemForm = document.getElementById('addItemForm');
+    const createMessage = document.getElementById('createMessage');
+
+    // Update UI session state
+    function updateAuthUI() {
+      if (authToken && currentUser) {
+        statusDot.className = 'status-dot online';
+        statusText.innerHTML = `Signed in as: <strong>${escapeHtml(currentUser.username)}</strong>`;
+        roleBadge.textContent = currentUser.role.toUpperCase();
+        roleBadge.className = `role-badge ${currentUser.role}`;
+        logoutBtn.style.display = 'inline-block';
+      } else {
+        statusDot.className = 'status-dot offline';
+        statusText.innerHTML = 'Session: <strong>Not Authenticated</strong>';
+        roleBadge.textContent = 'GUEST';
+        roleBadge.className = 'role-badge guest';
+        logoutBtn.style.display = 'none';
+      }
+    }
+
+    // Helper to escape HTML
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]));
+    }
+
+    // Food Emojis
+    function getEmoji(cat, name) {
+      const text = `${cat || ''} ${name || ''}`.toLowerCase();
+      if (/burger/.test(text)) return '🍔';
+      if (/pizza/.test(text)) return '🍕';
+      if (/tea|chai|coffee|drink|shake|juice/.test(text)) return '🥤';
+      if (/roll|wrap|frankie/.test(text)) return '🌯';
+      if (/samosa|snack|kachori/.test(text)) return '🥟';
+      if (/rice|biryani|thali|meal/.test(text)) return '🍛';
+      if (/sandwich/.test(text)) return '🥪';
+      return '🍽️';
+    }
+
+    function showBanner(el, text, type = 'success', status = 200) {
+      el.innerHTML = `<span class="http-badge http-${status}">HTTP ${status}</span> ${escapeHtml(text)}`;
+      el.className = `message-box ${type}`;
+      el.style.display = 'block';
+      setTimeout(() => { el.style.display = 'none'; }, 6000);
+    }
+
+    // Perform Login (POST /login)
+    async function performLogin(username, password) {
+      try {
+        const response = await fetch('/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+
+        const data = await response.json();
+
+        if (response.status === 200) {
+          authToken = data.token;
+          currentUser = data.user;
+          localStorage.setItem('campuseats_token', authToken);
+          localStorage.setItem('campuseats_user', JSON.stringify(currentUser));
+          updateAuthUI();
+          showBanner(loginMessage, `Welcome ${data.user.username}! Signed in as [${data.user.role}].`, 'success', 200);
+          loginForm.reset();
+        } else {
+          showBanner(loginMessage, data.error || 'Login failed', 'error', response.status);
+        }
+      } catch (err) {
+        showBanner(loginMessage, `Network error: ${err.message}`, 'error', 500);
+      }
+    }
+
+    // Quick demo login listeners
+    document.getElementById('demoCustomerBtn').addEventListener('click', () => performLogin('customer', 'customer123'));
+    document.getElementById('demoRestaurantBtn').addEventListener('click', () => performLogin('restaurant', 'restaurant123'));
+    document.getElementById('demoAdminBtn').addEventListener('click', () => performLogin('admin', 'admin123'));
+
+    // Manual login submit
+    loginForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const u = document.getElementById('loginUsername').value.trim();
+      const p = document.getElementById('loginPassword').value;
+      performLogin(u, p);
+    });
+
+    // Logout
+    logoutBtn.addEventListener('click', () => {
+      authToken = null;
+      currentUser = null;
+      localStorage.removeItem('campuseats_token');
+      localStorage.removeItem('campuseats_user');
+      updateAuthUI();
+      showBanner(loginMessage, 'Logged out successfully.', 'warning', 200);
+    });
+
+    // Load Menu Items (GET /items)
+    async function loadMenuItems() {
+      try {
+        const headers = {};
+        if (authToken) {
+          headers['Authorization'] = `Bearer ${authToken}`;
+        }
+
+        const response = await fetch('/items', { headers });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const items = await response.json();
+
+        if (items.length === 0) {
+          menuContainer.innerHTML = '<div class="empty-state"><p>No items found.</p></div>';
+          return;
+        }
+
+        menuContainer.innerHTML = items.map(item => `
+          <article class="item-card">
+            <div>
+              <div class="card-top">
+                <div class="food-icon">${getEmoji(item.category, item.name)}</div>
+                <span class="avail-pill ${item.available ? 'in-stock' : 'out-of-stock'}">
+                  ${item.available ? '● IN STOCK' : '○ SOLD OUT'}
+                </span>
+              </div>
+              <h3 class="item-title">${escapeHtml(item.name)}</h3>
+              <p class="item-cat">${escapeHtml(item.category || 'General')}</p>
+              ${item.createdBy ? `<p class="created-by">Created by: @${escapeHtml(item.createdBy)}</p>` : ''}
+            </div>
+            <div class="card-footer">
+              <span class="item-price">₹${Number(item.price).toFixed(2)}</span>
+              <span class="item-id">ID #${escapeHtml(item.id)}</span>
+            </div>
+          </article>
+        `).join('');
+      } catch (err) {
+        menuContainer.innerHTML = `<div class="empty-state"><p>Error loading menu: ${escapeHtml(err.message)}</p></div>`;
+      }
+    }
+
+    // Add Menu Item Form (POST /items)
+    addItemForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const name = document.getElementById('itemName').value.trim();
+      const category = document.getElementById('itemCategory').value.trim();
+      const price = parseFloat(document.getElementById('itemPrice').value);
+      const available = document.getElementById('itemAvailable').checked;
+
+      const headers = { 'Content-Type': 'application/json' };
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+
+      const payload = {
+        name,
+        category: category || 'General',
+        price: isNaN(price) ? 0 : price,
+        available,
+      };
+
+      try {
+        const response = await fetch('/items', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(payload),
+        });
+
+        const data = await response.json();
+
+        if (response.status === 201) {
+          showBanner(createMessage, `Item "${data.name}" created successfully by @${data.createdBy}!`, 'success', 201);
+          addItemForm.reset();
+          document.getElementById('itemAvailable').checked = true;
+          await loadMenuItems();
+        } else if (response.status === 401) {
+          showBanner(createMessage, `Unauthorized (401): ${data.error}`, 'error', 401);
+        } else if (response.status === 403) {
+          showBanner(createMessage, `Forbidden (403): ${data.error}`, 'error', 403);
+        } else if (response.status === 422) {
+          showBanner(createMessage, `Validation Error (422): ${data.error}`, 'warning', 422);
+        } else {
+          showBanner(createMessage, data.error || 'Request failed', 'error', response.status);
+        }
+      } catch (err) {
+        showBanner(createMessage, `Network error: ${err.message}`, 'error', 500);
+      }
+    });
+
+    refreshBtn.addEventListener('click', loadMenuItems);
+
+    // Init
+    updateAuthUI();
+    loadMenuItems();
+  </script>
+
+</body>
+</html>
+

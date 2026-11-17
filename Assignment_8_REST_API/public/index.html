@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CampusEats | Menu REST API</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Top Header -->
+  <header class="header">
+    <a href="/" class="brand">
+      <div class="brand-icon">CE</div>
+      <div class="brand-name">Campus<span>Eats</span></div>
+    </a>
+    <span class="badge">Assignment 8 – REST API</span>
+  </header>
+
+  <!-- Main Container -->
+  <main class="container">
+
+    <!-- Hero Card -->
+    <section class="hero">
+      <div>
+        <h1>Campus Cafeteria Catalog</h1>
+        <p>Explore real-time meals, snacks, and beverages served on campus.</p>
+      </div>
+      <div class="stats-badge">
+        <div class="stat-item">
+          <span class="stat-val" id="totalItemsCount">0</span>
+          <span class="stat-lbl">Total Items</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-val" id="availableItemsCount">0</span>
+          <span class="stat-lbl">In Stock</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Content Grid -->
+    <div class="main-grid">
+
+      <!-- Left Column: Menu Items -->
+      <section>
+        <div class="section-header">
+          <h2 class="section-title">Available Menu</h2>
+          <button id="refreshBtn" class="btn-secondary" type="button">
+            ↻ Refresh Menu
+          </button>
+        </div>
+
+        <div id="menuContainer" class="menu-grid">
+          <!-- Populated dynamically via Fetch API -->
+          <div class="empty-state">
+            <div class="empty-icon">⏳</div>
+            <p>Loading campus menu...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Add Menu Item Form -->
+      <aside>
+        <div class="form-card">
+          <h3 class="form-title">＋ Add New Menu Item</h3>
+          
+          <form id="addItemForm">
+            <div class="form-group">
+              <label class="form-label" for="itemName">Item Name *</label>
+              <input class="form-input" type="text" id="itemName" placeholder="e.g. Masala Dosa" required />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="itemCategory">Category</label>
+              <input class="form-input" type="text" id="itemCategory" placeholder="e.g. South Indian / Fast Food" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="itemPrice">Price (₹) *</label>
+              <input class="form-input" type="number" id="itemPrice" min="0" step="0.5" placeholder="e.g. 60" required />
+            </div>
+
+            <div class="form-group">
+              <label class="checkbox-label" for="itemAvailable">
+                <input type="checkbox" id="itemAvailable" checked />
+                <span>Mark as Available for Order</span>
+              </label>
+            </div>
+
+            <button type="submit" class="btn-primary" id="submitBtn">
+              Create Menu Item
+            </button>
+
+            <!-- Status message container -->
+            <div id="formMessage" class="message-box" role="alert"></div>
+          </form>
+        </div>
+      </aside>
+
+    </div>
+
+  </main>
+
+  <footer class="footer">
+    <p>CampusEats · Assignment 8 REST API Service · Express.js + JavaScript</p>
+  </footer>
+
+  <!-- Frontend Logic -->
+  <script>
+    const menuContainer = document.getElementById('menuContainer');
+    const totalCountEl = document.getElementById('totalItemsCount');
+    const availCountEl = document.getElementById('availableItemsCount');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const addItemForm = document.getElementById('addItemForm');
+    const formMessage = document.getElementById('formMessage');
+
+    // Categorized food icons
+    function getEmoji(cat, name) {
+      const text = `${cat || ''} ${name || ''}`.toLowerCase();
+      if (/burger/.test(text)) return '🍔';
+      if (/pizza/.test(text)) return '🍕';
+      if (/tea|chai|coffee|drink|shake|juice/.test(text)) return '🥤';
+      if (/roll|wrap|frankie/.test(text)) return '🌯';
+      if (/samosa|snack|kachori|puff/.test(text)) return '🥟';
+      if (/dosa|idli|vada/.test(text)) return '🥞';
+      if (/rice|biryani|thali|curry|meal/.test(text)) return '🍛';
+      if (/sandwich|toast/.test(text)) return '🥪';
+      if (/dessert|cake|ice cream|pastry/.test(text)) return '🍰';
+      return '🍽️';
+    }
+
+    // Helper to format currency
+    function formatMoney(amount) {
+      return '₹' + Number(amount || 0).toFixed(2);
+    }
+
+    // Escape HTML to prevent XSS
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str).replace(/[&<>"']/g, c => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[c]));
+    }
+
+    // Show temporary banner message
+    function showMessage(text, isError = false) {
+      formMessage.textContent = text;
+      formMessage.className = 'message-box ' + (isError ? 'error' : 'success');
+      formMessage.style.display = 'block';
+
+      setTimeout(() => {
+        formMessage.style.display = 'none';
+      }, 5000);
+    }
+
+    // Fetch and render all menu items (GET /items)
+    async function loadMenuItems() {
+      try {
+        const response = await fetch('/items');
+        if (!response.ok) {
+          throw new Error(`Failed to load items: HTTP ${response.status}`);
+        }
+
+        const items = await response.json();
+
+        // Update summary badges
+        totalCountEl.textContent = items.length;
+        availCountEl.textContent = items.filter(i => i.available).length;
+
+        if (items.length === 0) {
+          menuContainer.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-icon">🥣</div>
+              <p>No menu items available yet. Add your first item using the form!</p>
+            </div>
+          `;
+          return;
+        }
+
+        menuContainer.innerHTML = items.map(item => `
+          <article class="item-card">
+            <div>
+              <div class="card-top">
+                <div class="food-icon">${getEmoji(item.category, item.name)}</div>
+                <span class="avail-pill ${item.available ? 'in-stock' : 'out-of-stock'}">
+                  ${item.available ? '● IN STOCK' : '○ SOLD OUT'}
+                </span>
+              </div>
+              <h3 class="item-title">${escapeHtml(item.name)}</h3>
+              <p class="item-cat">${escapeHtml(item.category || 'General')}</p>
+            </div>
+            <div class="card-footer">
+              <span class="item-price">${formatMoney(item.price)}</span>
+              <span class="item-id">ID #${escapeHtml(item.id)}</span>
+            </div>
+          </article>
+        `).join('');
+
+      } catch (err) {
+        menuContainer.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">⚠️</div>
+            <p>Error loading menu items: ${escapeHtml(err.message)}</p>
+          </div>
+        `;
+      }
+    }
+
+    // Handle Form Submission (POST /items)
+    addItemForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const name = document.getElementById('itemName').value.trim();
+      const category = document.getElementById('itemCategory').value.trim();
+      const price = parseFloat(document.getElementById('itemPrice').value);
+      const available = document.getElementById('itemAvailable').checked;
+
+      // Client validation
+      if (!name) {
+        showMessage('Item name is required', true);
+        return;
+      }
+
+      const payload = {
+        name,
+        category: category || 'General',
+        price: isNaN(price) ? 0 : price,
+        available,
+      };
+
+      try {
+        const response = await fetch('/items', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await response.json();
+
+        if (response.status === 201) {
+          showMessage(`✓ Success! Created item "${data.name}" (ID: ${data.id}).`, false);
+          addItemForm.reset();
+          document.getElementById('itemAvailable').checked = true;
+          // Refresh list automatically
+          await loadMenuItems();
+        } else if (response.status === 422) {
+          showMessage(`Validation Error (422): ${data.error || 'Invalid item data'}`, true);
+        } else {
+          showMessage(`Error (${response.status}): ${data.error || 'Could not create item'}`, true);
+        }
+      } catch (err) {
+        showMessage(`Network error: ${err.message}`, true);
+      }
+    });
+
+    // Manual Refresh button
+    refreshBtn.addEventListener('click', () => {
+      loadMenuItems();
+    });
+
+    // Initial Load
+    loadMenuItems();
+  </script>
+
+</body>
+</html>
+
